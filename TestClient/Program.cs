@@ -10,14 +10,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Com.AugustCellars.CoAP;
 using Com.AugustCellars.CoAP.DTLS;
-using Com.AugustCellars.CoAP.EDHOC;
 using Com.AugustCellars.CoAP.Log;
 using Com.AugustCellars.CoAP.OSCOAP;
 using Com.AugustCellars.CoAP.Util;
-using Com.AugustCellars.CoAP.TLS;
 using Com.AugustCellars.COSE;
 using PeterO.Cbor;
 using Com.AugustCellars.CoAP.Net;
+#if DEV_VERSION
+using Com.AugustCellars.CoAP.EDHOC;
+using Com.AugustCellars.CoAP.TLS;
+#endif
 
 namespace TestClient
 {
@@ -119,7 +121,7 @@ namespace TestClient
 
                 case "SET-ENDPOINT":
 		    if (_EndPoint == null) {
-		       _EndPoint.Stop()
+                        _EndPoint.Stop();
 			 _EndPoint.Dispose();
 		       _EndPoint = null;
 		    }
@@ -129,6 +131,7 @@ namespace TestClient
                             _EndPoint = null;
                             break;
 
+#if DEV_VERSION
                         case "TCP":
                             if (commands.Length == 3) {
                                 _EndPoint = new TCPClientEndPoint(Int32.Parse(commands[2]));
@@ -138,6 +141,7 @@ namespace TestClient
                             }
                             _EndPoint.Start();
                             break;
+#endif // DEV_VERSION
 
                         default:
                             Console.WriteLine("Unknown endpoint type");
@@ -253,9 +257,11 @@ namespace TestClient
                     else Console.WriteLine("Wrong number of arguments");
                     break;
 
+#if DEV_VERSION
                 case "EDHOC":
                     RunEdhoc(commands);
                     break;
+#endif
 
                 case "ADD-OSCOAP":
                     if (commands.Length != 3) {
@@ -274,6 +280,7 @@ namespace TestClient
 
                     break;
 
+#if DEV_VERSION
                 case "ADD-OSCOAP-GROUP":
                     if (commands.Length != 3) {
                         Console.WriteLine("Incorrect number of arguments: " + commands.Length);
@@ -289,6 +296,7 @@ namespace TestClient
 
                     _OscopKeys.Add(commands[1], ctx);
                     break;
+#endif
 
                 case "USE-OSCOAP":
                     if (commands.Length != 2) {
@@ -551,6 +559,7 @@ namespace TestClient
             return tokens.ToArray();
         }
 
+#if DEV_VERSION
         /// <summary>
         /// Run the EDHOC protocol
         /// Command line:  EDHOC <New key name> <validate key> URL
@@ -586,6 +595,7 @@ namespace TestClient
 
             _OscopKeys[cmds[1]] = send.CreateSecurityContext();
         }
+#endif // DEV_VERSION
 
         static OptionType GetOptionType(string name)
         {
