@@ -1,0 +1,19 @@
+# Travis-CI Build for dynamitey 
+# see travis-ci.org for details
+
+language: csharp
+os:
+  - linux
+  - osx
+
+env:
+  - SLN=TestClient.Net462.sln
+    TARGET=Net462
+    VERSION=Release
+
+install:
+   - curl -L -o nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
+#   - mono nuget.exe install NUnit.Runners -Version 3.5.0 -OutputDirectory testrunner
+
+script:
+  - ./build.sh

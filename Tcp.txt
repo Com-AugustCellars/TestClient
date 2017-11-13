@@ -1,0 +1,3 @@
+host coap://localhost
+use-endpoint TCP
+get /.well-known/core

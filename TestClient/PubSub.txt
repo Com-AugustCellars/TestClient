@@ -1,0 +1,104 @@
+HOST coap://localhost
+comment - Look for a resource which supports pub/sub 
+DISCOVER /.well-known/core?rt=core.ps
+sleep 1
+comment - Look for a resource in the pub/sub directory - should be empty
+DISCOVER /ps?rt=temperature
+sleep 1
+Comment - Create a number of resources
+POST /ps "<topic1>;ct=50"
+sleep 1
+POST /ps "<maintopic>;ct=40"
+sleep 1
+POST /ps/maintopic "<subtopic>;ct=50"
+sleep 1
+POST /ps/topic1 "<topic2>;ct=50"
+sleep 1
+OPTION Max-Age:20
+POST /ps "<timed>;ct=50;rt=go-away"
+OPTION-CLEAR Max-Age
+sleep 1
+DISCOVER /ps?rt=go-away
+sleep
+sleep 30
+Comment - the resource should be gone now
+DISCOVER /ps?rt=go-away
+
+comment - resoure goes stays based publish to leaf
+
+
+Comment - Publish operations
+PUT /ps/topic1 "This is some text"
+sleep 1
+GET /ps/topic1
+sleep 1
+
+comment - publish again
+PUT /ps/topic1 "This is different text"
+sleep 1
+GET /ps/topic1
+slep 1
+
+comment - publish wrong content type
+OPTION ct:40
+PUT /ps/topic1 "<topic2>;ct=50"
+sleep 1
+
+comment - publish inner node
+PUT /ps/maintopic "<topic3>;ct=50
+sleep 1
+
+comment - create on publish
+OPTION ct:50
+PUT /ps/createTopic "This is a created topic"
+sleep 1
+GET /ps/createTopic
+sleep 1
+
+comment - again with POST - note create failes
+POST /ps/createTopic2 "This is a fail topic"
+sleep 1
+
+
+comment - publish w/ max-age
+OPTION max-age:20
+PUT /ps/topic1 "This is a max-age"
+
+
+comment - subscribe tests
+OPTION observe:1
+GET /ps/topic1
+sleep 1
+
+CLEAR-OPTION observe
+PUT /ps/topic1 "For # 2"
+sleep 2
+
+PUT /ps/topic2 "For # 3"
+sleep 2
+
+OPTION observe:0
+GET /ps/topic1
+sleep 1
+
+PUT /ps/topic2 "For #3"
+sleep 1
+
+
+comment - delete leaf
+
+DISCOVER /ps
+sleep 1
+
+DELETE /ps/topic1
+sleep 1
+
+DISCOVER /ps
+sleep 1
+
+comment - delete node
+DELETE /ps/maintopic
+sleep 1
+
+DISCOVER /ps
+
