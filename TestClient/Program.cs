@@ -120,11 +120,11 @@ namespace TestClient
                     break;
 
                 case "SET-ENDPOINT":
-		    if (_EndPoint == null) {
+                    if (_EndPoint == null) {
                         _EndPoint.Stop();
-			 _EndPoint.Dispose();
-		       _EndPoint = null;
-		    }
+                        _EndPoint.Dispose();
+                        _EndPoint = null;
+                    }
 		    
                     switch (commands[1]) {
                         case "UDP":
