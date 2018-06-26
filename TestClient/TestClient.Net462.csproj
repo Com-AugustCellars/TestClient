@@ -32,23 +32,23 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="BouncyCastle.Crypto, Version=1.8.1.0, Culture=neutral, PublicKeyToken=0e99375e54769942">
-      <HintPath>..\packages\BouncyCastle.1.8.1\lib\BouncyCastle.Crypto.dll</HintPath>
+    <Reference Include="BouncyCastle.Crypto, Version=1.8.2.0, Culture=neutral, PublicKeyToken=0e99375e54769942, processorArchitecture=MSIL">
+      <HintPath>..\packages\Portable.BouncyCastle.1.8.2\lib\net40\BouncyCastle.Crypto.dll</HintPath>
     </Reference>
-    <Reference Include="CBOR, Version=3.0.0.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
-      <HintPath>..\packages\PeterO.Cbor.3.0.0\lib\netstandard1.0\CBOR.dll</HintPath>
+    <Reference Include="CBOR, Version=3.1.0.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
+      <HintPath>..\packages\PeterO.Cbor.3.1.0\lib\netstandard1.0\CBOR.dll</HintPath>
     </Reference>
-    <Reference Include="CoAP, Version=1.1.6.0, Culture=neutral, PublicKeyToken=e2c10a743037308b, processorArchitecture=MSIL">
-      <HintPath>..\packages\Com.AugustCellars.CoAP.1.1.8.1\lib\portable-net45+dnxcore50+netcore45+win+wpa81+wp80\CoAP.dll</HintPath>
+    <Reference Include="CoAP, Version=1.1.9.0, Culture=neutral, PublicKeyToken=e2c10a743037308b, processorArchitecture=MSIL">
+      <HintPath>..\packages\Com.AugustCellars.CoAP.1.1.9\lib\net462\CoAP.dll</HintPath>
     </Reference>
-    <Reference Include="COSE, Version=1.1.0.0, Culture=neutral, PublicKeyToken=feba232d7e8953ed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Com.AugustCellars.COSE.1.1.0\lib\netstandard1.0\COSE.dll</HintPath>
+    <Reference Include="COSE, Version=1.2.0.0, Culture=neutral, PublicKeyToken=feba232d7e8953ed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Com.AugustCellars.COSE.1.2.0\lib\netstandard1.0\COSE.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Win32.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Win32.Primitives.4.3.0\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
     </Reference>
-    <Reference Include="Numbers, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
-      <HintPath>..\packages\PeterO.Numbers.1.0.0\lib\netstandard1.0\Numbers.dll</HintPath>
+    <Reference Include="Numbers, Version=1.0.2.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
+      <HintPath>..\packages\PeterO.Numbers.1.0.2\lib\netstandard1.0\Numbers.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.AppContext, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -113,6 +113,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CBORDiagnostics.cs" />
+    <Compile Include="Dispatch.cs" />
     <Compile Include="OscoapTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
