@@ -160,7 +160,7 @@ namespace TestClient
                         break;
 
                     case "no":
-                        Con = MessageType.CON;
+                        Con = MessageType.NON;
                         break;
 
                     case "ack":
