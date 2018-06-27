@@ -278,6 +278,10 @@ namespace TestClient
                             }
                             break;
 
+                        case OptionType.Unknown:
+                            Console.WriteLine("Unrecognized type string");
+                            return;
+
                         default:
                             if (commands.Length == 2) {
                                 _Options.Add(Option.Create(typ));
