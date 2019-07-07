@@ -17,8 +17,9 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <IntermediateOutputPath>obj\dev\Debug</IntermediateOutputPath>
+    <OutputPath>bin\dev\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;DEV_VERSION DO_ACE DO_RD</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -26,7 +27,8 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <IntermediateOutputPath>obj\dev\Release</IntermediateOutputPath>
+    <OutputPath>bin\dev\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -35,17 +37,14 @@
     <Reference Include="BouncyCastle.Crypto, Version=1.8.1.0, Culture=neutral, PublicKeyToken=0e99375e54769942, processorArchitecture=MSIL">
       <HintPath>..\packages\Portable.BouncyCastle.1.8.1.3\lib\net40\BouncyCastle.Crypto.dll</HintPath>
     </Reference>
-    <Reference Include="CBOR, Version=3.0.0.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
-      <HintPath>..\packages\PeterO.Cbor.3.0.0\lib\netstandard1.0\CBOR.dll</HintPath>
-    </Reference>
-    <Reference Include="COSE, Version=1.1.0.0, Culture=neutral, PublicKeyToken=feba232d7e8953ed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Com.AugustCellars.COSE.1.1.0\lib\netstandard1.0\COSE.dll</HintPath>
+    <Reference Include="CBOR, Version=3.0.3.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
+      <HintPath>..\packages\PeterO.Cbor.3.0.3\lib\netstandard1.0\CBOR.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.Win32.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Win32.Primitives.4.3.0\lib\net46\Microsoft.Win32.Primitives.dll</HintPath>
     </Reference>
-    <Reference Include="Numbers, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
-      <HintPath>..\packages\PeterO.Numbers.1.0.0\lib\netstandard1.0\Numbers.dll</HintPath>
+    <Reference Include="Numbers, Version=1.0.2.0, Culture=neutral, PublicKeyToken=9cd62db60ea5554c, processorArchitecture=MSIL">
+      <HintPath>..\packages\PeterO.Numbers.1.0.2\lib\netstandard1.0\Numbers.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.AppContext, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
@@ -109,23 +108,31 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ace\AceTest.cs" />
     <Compile Include="CBORDiagnostics.cs" />
+    <Compile Include="Dispatch.cs" />
+    <Compile Include="ace\AceAuthz.cs" />
     <Compile Include="OscoapTests.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResourceDirectory.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\COSE\oscoap\EDHOC-csharp\EDHOC.NET45.csproj">
-      <Project>{787820e9-ca79-4398-a17b-73ce1ff158db}</Project>
-      <Name>EDHOC.NET45</Name>
+    <ProjectReference Include="..\..\..\..\ace\Oauth-Authz\OAuth\OAuth.csproj">
+      <Project>{57b3851a-f410-42dd-be26-a7d55cdcdc4f}</Project>
+      <Name>OAuth</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\CoAP-CSharp\CoAP.NET\CoAP.NET45.csproj">
+    <ProjectReference Include="..\..\..\..\COSE\COSE-csharp\COSE\COSE.dev.csproj">
+      <Project>{4fa4e707-7d55-45b2-8fad-c035fc76476d}</Project>
+      <Name>COSE.dev</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\CoAP-CSharp\CoAP.NET\coap.dev.csproj">
       <Project>{45db1e45-4831-4e4a-bb1e-ae92eea182e3}</Project>
-      <Name>CoAP.NET45</Name>
+      <Name>coap.dev</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\CWT\WebToken\CWT.dev.csproj">
+      <Project>{d0122cad-ccd2-4ccf-b4a3-d2bbe5d86a1b}</Project>
+      <Name>CWT.dev</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\TCP\TCP\TCP.csproj">
       <Project>{d130f530-95e4-4b31-a339-471cb2a3d90f}</Project>
@@ -133,6 +140,9 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Ace-Echo.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="EdhocScript.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -145,6 +155,12 @@
     <Content Include="tcp.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="TcpBlock.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

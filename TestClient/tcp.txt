@@ -1,4 +1,9 @@
 host coap://localhost
 set-endpoint TCP
+add-tlskey Key1 {1:4,2:'client',-1:'This_is_the_key_to_use'}
+use-tlskey Key1
 
-get /.well-known/core
+comment get /hello
+
+GET coaps://localhost/.well-known/core
+

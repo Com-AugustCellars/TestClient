@@ -1,8 +1,11 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
-using System.Data;
+using System.Configuration;
 using System.IO;
-using System.Security.Policy;
+using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Com.AugustCellars.CoAP;
 using Com.AugustCellars.CoAP.DTLS;
@@ -12,6 +15,8 @@ using Com.AugustCellars.CoAP.Util;
 using Com.AugustCellars.COSE;
 using PeterO.Cbor;
 using Com.AugustCellars.CoAP.Net;
+using Com.AugustCellars.WebToken;
+using Org.BouncyCastle.Crypto.Paddings;
 #if DEV_VERSION
 #if false
 using Com.AugustCellars.CoAP.EDHOC;
@@ -23,11 +28,11 @@ namespace TestClient
 {
     class Program
     {
-        public static readonly Dictionary<string, OneKey> _TlsKeys = new Dictionary<string, OneKey>();
+        public static readonly Dictionary<string, OneTlsKey> _TlsKeys = new Dictionary<string, OneTlsKey>();
         // private static CoAPEndPoint _EndPoint = null;
         // private static CoAPEndPoint _DtlsEndpoint = null;
         private static OneKey _TlsKey = null;
-        private static readonly Dictionary<string, SecurityContext> _OscopKeys = new Dictionary<string, SecurityContext>();
+        public static readonly Dictionary<string, SecurityContext> _OscopKeys = new Dictionary<string, SecurityContext>();
         private static SecurityContext _CurrentOscoap = null;
         private static readonly Dictionary<string, OneKey> _EdhocValidateKeys = new Dictionary<string, OneKey>();
         private static readonly KeySet _EdhocServerKeys = new KeySet();
@@ -43,11 +48,40 @@ namespace TestClient
 #endif
 
         public static Uri Host { get; set; }
+        public static System.Net.IPEndPoint LocalIp { get; set; }
         public static string Transport { get; set; } = "UDP"; 
 
         static void Main(string[] args)
         {
             string script = null;
+
+#if false
+            {
+                //  Generate a pair of CWT messages signed by a third key.
+
+                OneKey clientKey = OneKey.GenerateKey( AlgorithmValues.ECDSA_256, GeneralValues.KeyType_EC);
+                OneKey serverKey = OneKey.GenerateKey(AlgorithmValues.ECDSA_256, GeneralValues.KeyType_EC);
+                OneKey caKey = OneKey.GenerateKey(AlgorithmValues.ECDSA_256, GeneralValues.KeyType_EC);
+
+                CWT clientCwt = new CWT();
+                clientCwt.Cnf = new Confirmation(clientKey.PublicKey());
+                clientCwt.SigningKey = caKey;
+                CBORObject clientCwtCbor = clientCwt.EncodeToCBOR();
+                string clientCwtStr = clientCwtCbor.ToString();
+                byte[] clientCwtBytes = clientCwt.EncodeToBytes();
+
+                CWT serverCwt = new CWT() {
+                    Cnf = new Confirmation(serverKey),
+                    SigningKey = caKey
+                };
+                CBORObject serverCwtCbor = serverCwt.EncodeToCBOR();
+                string serverCwtStr = serverCwtCbor.ToString();
+                byte[] serverCwtBytes = serverCwt.EncodeToBytes();
+
+                string caStr = caKey.EncodeToCBORObject().ToString();
+
+            }
+#endif
 
             LogManager.Instance = new FileLogManager(Console.Out);
 
@@ -124,9 +158,25 @@ namespace TestClient
             table.Add("host", new Dispatch("Set a default host to be used", "host [<uri>]", SetHost));
             table.Add("set-transport", new Dispatch("Set the transport to default to if not in the URL", 
                                                     "set-transport UDP|TCP", SetTransport));
+            table.Add("local", new Dispatch("Set the local address to send from", "local [<uri>]", SetLocal));
 
             table.Add("add-tlskey", new Dispatch("Add a named TLS key to the dictionary", "add-tlskey ????", AddTlsKey));
+            table.Add("add-tlscwt", new Dispatch("Add a named CWT for TLS to the dictionary", "add-tlscwt name CWT PrivateKey", AddTlsCwt));
             table.Add("set-tlskey", new Dispatch("Set the default TLS key to use", "set-tlskey [key-name]", SetTlsKey));
+            table.Add("add-cwtroot", new Dispatch("Add a key to the CWT trust store", "add-cwtroot key", AddCwtRoot));
+
+            table.Add("etag", new Dispatch("Manipulate ETag behavior", "etag [None|clear|last|add|all]", ETagCommands));
+            table.Add("if-match", new Dispatch("Set If-Match message options", "if-match [all|none|last]", IfMatchCommands));
+
+#region OSCORE
+            //  OSCORE Functions
+            table.Add("add-oscore", new Dispatch("Add a OSCORE key to the key set", "add-oscore key-name key-value", AddOscoreKey));
+            table.Add("add-group-oscore", new Dispatch("Add a Group OSCORE key to the key set", "add-oscore key-name key-value", AddGroupOscoreKey));
+            table.Add("set-oscore", new Dispatch("Select an score key to use", "set-oscore [key-name]", UseOscoreKey));
+            table.Add("use-oscore", new Dispatch("Select an score key to use", "use-oscore [key-name]", UseOscoreKey));
+            table.Add("run-oscore-test", new Dispatch("Run a specific oscore text", "run-score-test testNumber", RunOscoreText));
+            table.Add("set-oscore-piv", new Dispatch("Set the PIV value for the current oscore key", "set-oscore-piv pivNumber", SetOscorePiv));
+#endregion
 
         }
 
@@ -141,6 +191,76 @@ namespace TestClient
             Body = cbor.EncodeToBytes();
 
 
+        }
+
+        static List<byte[]> ETagList = new List<byte[]>();
+        private static int ETagOption = 0;
+
+        static void ETagCommands(string[] cmds)
+        {
+            if (cmds.Length == 1) {
+                Console.WriteLine("Incorrect number of arguments");
+                return;
+            }
+
+            switch (cmds[1].ToLower()) {
+                case "add":
+                    try {
+                        CBORObject o = CBORDiagnostics.Parse(cmds[2]);
+                        ETagList.Add(o.GetByteString());
+                    }
+                    catch {
+                        Console.WriteLine("Error in command");                        
+                    }
+                    break;
+
+                case "all":
+                    ETagOption = 2;
+                    break;
+
+                case "clear":
+                    ETagList.Clear();
+                    break;
+
+                case "last":
+                    ETagOption = 1;
+                    break;
+
+                case "none":
+                    ETagOption = 0;
+                    break;
+
+                default:
+                    Console.WriteLine("Unknown option");
+                    break;
+            }
+        }
+
+        private static int IfMatchOption = 0;
+        static void IfMatchCommands(string[] cmds)
+        {
+            if (cmds.Length == 1) {
+                Console.WriteLine("Incorrect number of arguments");
+                return;
+            }
+
+            switch (cmds[1].ToLower()) {
+            case "all":
+                IfMatchOption = 2;
+                break;
+
+            case "last":
+                IfMatchOption = 1;
+                break;
+
+            case "none":
+                IfMatchOption = 0;
+                break;
+
+            default:
+                Console.WriteLine("Unknown option");
+                break;
+            }
         }
 
         static void SetConState(string[] cmds)
@@ -200,9 +320,10 @@ namespace TestClient
         {
             if (commands.Length == 0) return;
 
-            
 
-            switch (commands[0].ToUpper()) {
+            try {
+
+                switch (commands[0].ToUpper()) {
                 default:
                     _dispatchTable.Execute(commands);
                     break;
@@ -235,23 +356,25 @@ namespace TestClient
                         Console.WriteLine("Incorrect number of args");
                         return;
                     }
+
                     switch (commands[1].ToUpper()) {
-                        case "INFO":
-                            LogManager.Level = LogLevel.Info;
-                            break;
+                    case "INFO":
+                        LogManager.Level = LogLevel.Info;
+                        break;
 
-                        case "NONE":
-                            LogManager.Level = LogLevel.None;
-                            break;
+                    case "NONE":
+                        LogManager.Level = LogLevel.None;
+                        break;
 
-                        case "FATAL":
-                            LogManager.Level = LogLevel.Fatal;
-                            break;
+                    case "FATAL":
+                        LogManager.Level = LogLevel.Fatal;
+                        break;
 
-                        default:
-                            Console.WriteLine("Unknown level");
-                            break;
+                    default:
+                        Console.WriteLine("Unknown level");
+                        break;
                     }
+
                     break;
 
                 case "LOG-TO":
@@ -260,39 +383,42 @@ namespace TestClient
                 case "OPTION":
                     OptionType typ = GetOptionType(commands[1]);
                     switch (typ) {
-                        case OptionType.ContentFormat:
-                        case OptionType.Accept:
-                            if (commands.Length == 2) {
-                                _Options.Add(Option.Create(typ));
-                            }
-                            else {
-                                for (int i = 2; i < commands.Length; i++) {
-                                    int val = MediaType.ApplicationLinkFormat;
-                                    if (int.TryParse(commands[i], out val)) {
-                                        _Options.Add(Option.Create(typ, val));
-                                    }
-                                    else {
-                                        Console.WriteLine($"Bad option value '{commands[i]}'");
-                                    }
+                    case OptionType.ContentFormat:
+                    case OptionType.Accept:
+                        if (commands.Length == 2) {
+                            _Options.Add(Option.Create(typ));
+                        }
+                        else {
+                            for (int i = 2; i < commands.Length; i++) {
+                                int val = MediaType.ApplicationLinkFormat;
+                                if (int.TryParse(commands[i], out val)) {
+                                    _Options.Add(Option.Create(typ, val));
+                                }
+                                else {
+                                    Console.WriteLine($"Bad option value '{commands[i]}'");
                                 }
                             }
-                            break;
+                        }
 
-                        case OptionType.Unknown:
-                            Console.WriteLine("Unrecognized type string");
-                            return;
+                        break;
 
-                        default:
-                            if (commands.Length == 2) {
-                                _Options.Add(Option.Create(typ));
+                    case OptionType.Unknown:
+                        Console.WriteLine("Unrecognized type string");
+                        return;
+
+                    default:
+                        if (commands.Length == 2) {
+                            _Options.Add(Option.Create(typ));
+                        }
+                        else {
+                            for (int i = 2; i < commands.Length; i++) {
+                                _Options.Add(Option.Create(typ, commands[i]));
                             }
-                            else {
-                                for (int i = 2; i < commands.Length; i++) {
-                                    _Options.Add(Option.Create(typ, commands[i]));
-                                }
-                            }
-                            break;
+                        }
+
+                        break;
                     }
+
                     break;
 
                 case "CLEAR-OPTION":
@@ -301,11 +427,13 @@ namespace TestClient
                         return;
 
                     }
+
                     typ = GetOptionType(commands[1]);
                     List<Option> del = new List<Option>();
                     foreach (Option op in _Options) {
                         if (op.Type == typ) del.Add(op);
                     }
+
                     foreach (Option op in del) _Options.Remove(op);
                     break;
 
@@ -323,67 +451,10 @@ namespace TestClient
                     break;
 #endif
 
-                case "ADD-OSCOAP":
-                    if (commands.Length != 3) {
-                        Console.WriteLine("Incorrect number of arguments: " + commands.Length);
-                        return;
-                    }
-
-                    CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
-                    SecurityContext ctx = SecurityContext.DeriveContext(
-                        cbor[CoseKeyParameterKeys.Octet_k].GetByteString(),
-                        cbor[CBORObject.FromObject("RecipID")].GetByteString(),
-                        cbor[CBORObject.FromObject("SenderID")].GetByteString(), null,
-                        cbor[CoseKeyKeys.Algorithm]);
-
-                    _OscopKeys.Add(commands[1], ctx);
-
-                    break;
 
 #if DEV_VERSION
-                case "ADD-OSCOAP-GROUP":
-                    if (commands.Length != 3) {
-                        Console.WriteLine("Incorrect number of arguments: " + commands.Length);
-                        return;
-                    }
-                    cbor = CBORDiagnostics.Parse(commands[2]);
-                    ctx = SecurityContext.DeriveGroupContext(cbor[CoseKeyParameterKeys.Octet_k].GetByteString(), cbor[CoseKeyKeys.KeyIdentifier].GetByteString(),
-                        cbor[CBORObject.FromObject("sender")][CBORObject.FromObject("ID")].GetByteString(), null, null, cbor[CoseKeyKeys.Algorithm]);
-                    ctx.Sender.SigningKey = new OneKey(cbor["sender"]["sign"]);
-                    foreach (CBORObject recipient in cbor[CBORObject.FromObject("recipients")].Values) {
-                        ctx.AddRecipient(recipient[CBORObject.FromObject("ID")].GetByteString(), new OneKey(recipient["sign"]));
-                    }
-
-                    _OscopKeys.Add(commands[1], ctx);
-                    break;
 #endif
 
-                case "USE-OSCOAP":
-                    if (commands.Length != 2) {
-                        Console.WriteLine("Incorrect number of arguments: " + commands.Length);
-                        return;
-                    }
-
-                    if (commands[1] == "NONE") {
-                        _CurrentOscoap = null;
-                        return;
-                    }
-
-                    if (!_OscopKeys.ContainsKey(commands[1])) {
-                        Console.WriteLine($"OSCOAP Key {commands[1]} is not defined");
-                        return;
-                    }
-
-                    _CurrentOscoap = _OscopKeys[commands[1]];
-                    break;
-
-                case "OSCOAP-TEST":
-                    OscoapTests.RunTest(Int32.Parse(commands[1]) );
-                    break;
-
-                case "OSCOAP-PIV":
-                    _CurrentOscoap.Sender.SequenceNumber = Int32.Parse(commands[1]);
-                    break;
 
                 case "EDHOC-ADD-SERVER-KEY":
                     if (commands.Length != 2) {
@@ -391,7 +462,7 @@ namespace TestClient
                         return;
                     }
 
-                    cbor = CBORDiagnostics.Parse(commands[2]);
+                    CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
                     _EdhocServerKeys.AddKey(new OneKey(cbor));
                     break;
 
@@ -404,6 +475,11 @@ namespace TestClient
                     cbor = CBORDiagnostics.Parse(commands[2]);
                     _EdhocValidateKeys.Add(commands[1], new OneKey(cbor));
                     break;
+                }
+            }
+            catch (Exception e) {
+                Console.WriteLine("Exception processing command");
+                Console.WriteLine(e);
             }
         }
 
@@ -416,6 +492,25 @@ namespace TestClient
             else {
                 Console.WriteLine("Wrong number of arguments");
             }
+        }
+
+        public static void SetLocal(string[] commands)
+        {
+            if (commands.Length == 1) LocalIp = null;
+            else if (commands.Length == 2) {
+                try {
+                    LocalIp = new IPEndPoint( IPAddress.Parse(commands[1]), 0);
+                }
+                catch {
+                    Console.WriteLine("Invalid format");
+                }
+            }
+            else {
+                Console.WriteLine("Wrong number of arguments");
+                return;
+            }
+
+            endpoints.Clear();
         }
 
         public static void SetTransport(string[] commands)
@@ -438,6 +533,20 @@ namespace TestClient
             }
         }
 
+        private static void AddTlsCwt(string[] commands)
+        {
+            if (commands.Length != 4) {
+                Console.Write($"Incorrect number of arguments: {commands.Length}");
+                return;
+            }
+
+            CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
+            CWT cwt = CWT.Decode(cbor.EncodeToBytes(), CwtRootKeys, CwtRootKeys);
+
+            cbor = CBORDiagnostics.Parse(commands[3]);
+            _TlsKeys.Add(commands[1], new OneTlsKey(cwt, new OneKey(cbor)));
+        }
+
         private static void AddTlsKey(string[] commands)
         {
             if (commands.Length != 3) {
@@ -447,7 +556,7 @@ namespace TestClient
 
             CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
             OneKey key = new OneKey(cbor);
-            _TlsKeys.Add(commands[1], key);
+            _TlsKeys.Add(commands[1], new OneTlsKey(key));
         }
 
         private static void SetTlsKey(string[] commands)
@@ -465,6 +574,104 @@ namespace TestClient
             currentTlsKey = commands[1];
         }
 
+        #region OSCORE functions
+
+        private static void AddOscoreKey(string[] cmds)
+        {
+            if (cmds.Length != 3) {
+                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
+                return;
+            }
+
+            CBORObject cbor = CBORDiagnostics.Parse(cmds[2]);
+            byte[] salt = null;
+            if (cbor.ContainsKey(CBORObject.FromObject(6))) {
+                salt = cbor[CBORObject.FromObject(6)].GetByteString();
+            }
+
+            byte[] contextId = null;
+            if (cbor.ContainsKey(CBORObject.FromObject(7))) {
+                contextId = cbor[CBORObject.FromObject(7)].GetByteString();
+            }
+
+            SecurityContext ctx = SecurityContext.DeriveContext(
+                cbor[CBORObject.FromObject(1)].GetByteString(),
+                contextId,
+                cbor[CBORObject.FromObject(2)].GetByteString(),
+                cbor[CBORObject.FromObject(3)].GetByteString(), salt,
+                null /*cbor[CoseKeyKeys.Algorithm]*/);
+
+            _OscopKeys.Add(cmds[1], ctx);
+        }
+
+        /// <summary>
+        /// What the CBOR structure needs to look like:
+        /// 
+        /// </summary>
+        /// <param name="cmds"></param>
+        private static void AddGroupOscoreKey(string[] cmds)
+        {
+            if (cmds.Length != 3) {
+                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
+                return;
+            }
+
+            CBORObject cbor = CBORDiagnostics.Parse(cmds[2]);
+            byte[] salt = null;
+            if (cbor.ContainsKey(CoseKeyKeys.slt)) {
+                salt = cbor[CoseKeyKeys.slt].GetByteString();
+            }
+
+            SecurityContext ctx = SecurityContext.DeriveGroupContext(cbor[CoseKeyParameterKeys.Octet_k].GetByteString(),
+                                                                     cbor[CBORObject.FromObject("GroupID")].GetByteString(),
+                                                                     cbor[CBORObject.FromObject("sender")][
+                                                                         CBORObject.FromObject("ID")].GetByteString(),
+                                                                     cbor["sender"]["sign"][CoseKeyKeys.Algorithm],
+                                                                     new OneKey(cbor["sender"]["sign"]),
+                                                                     null, null, salt, cbor[CoseKeyKeys.Algorithm]);
+            foreach (CBORObject recipient in cbor[CBORObject.FromObject("recipients")].Values) {
+                OneKey signKey = null;
+                if (recipient.ContainsKey("sign")) {
+                    signKey = new OneKey(recipient["sign"]);
+                }
+                ctx.AddRecipient(recipient[CBORObject.FromObject("ID")].GetByteString(), signKey);
+            }
+
+            _OscopKeys.Add(cmds[1], ctx);
+        }
+
+        private static void UseOscoreKey(string[] cmds)
+        {
+            if (cmds.Length != 2) {
+                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
+                return;
+            }
+
+            if (cmds[1] == "NONE") {
+                _CurrentOscoap = null;
+                return;
+            }
+
+            if (!_OscopKeys.ContainsKey(cmds[1])) {
+                Console.WriteLine($"OSCOAP Key {cmds[1]} is not defined");
+                return;
+            }
+
+            _CurrentOscoap = _OscopKeys[cmds[1]];
+        }
+
+        private static void RunOscoreText(string[] cmds)
+        {
+
+            OscoapTests.RunTest(Int32.Parse(cmds[1]));
+        }
+
+        private static void SetOscorePiv(string[] cmds)
+        {
+            _CurrentOscoap.Sender.SequenceNumber = Int32.Parse(cmds[1]);
+        }
+
+        #endregion
 
         public static void RunCoapCommand(string[] args)
         {
@@ -549,6 +756,10 @@ namespace TestClient
                         }
                         Console.WriteLine("Time (ms): " + response.RTT);
 
+                        if (response.HasOption(OptionType.ETag)) {
+                            ETagList.AddRange(response.ETags);
+                        }
+
 #if DO_ACE
                         if (response.StatusCode == StatusCode.Unauthorized && AceAuthzHandler != null) {
                             AceAuthzHandler.Process(request, response);
@@ -614,7 +825,12 @@ namespace TestClient
 #endif
 
                     case "coap+udp":
-                        ep = new CoAPEndPoint();
+                        if (LocalIp != null) {
+                            ep = new CoAPEndPoint(LocalIp);
+                        }
+                        else {
+                            ep = new CoAPEndPoint();
+                        }
                         break;
 
                     case "coaps+udp":
@@ -622,7 +838,15 @@ namespace TestClient
                             Console.WriteLine("No current TLS key specified");
                             return false;
                         }
-                        DTLSClientEndPoint dep = new DTLSClientEndPoint(_TlsKeys[currentTlsKey]);
+
+                        DTLSClientEndPoint dep;
+                        if (LocalIp != null) {
+                            dep = new DTLSClientEndPoint(_TlsKeys[currentTlsKey].RawPublicKey, LocalIp);
+                        }
+                        else {
+                            dep = _TlsKeys[currentTlsKey].GetClientEndPoint();
+                        }
+
                         dep.TlsEventHandler += OnTlsEvent;
                         ep = dep;
                         break;
@@ -640,7 +864,6 @@ namespace TestClient
                     Console.WriteLine("Signal message from {0}", "???");
                     Console.WriteLine(args.Message.ToString());
                 };
-
             }
 
             request.EndPoint = endpoints[server];
@@ -721,6 +944,9 @@ namespace TestClient
             }
             request.URI = uriIn;
 
+            SetTagOptions(request, OptionType.ETag, ETagOption);
+            SetTagOptions(request, OptionType.IfMatch, IfMatchOption);
+
             request.AddOptions(_Options);
             if (_CurrentOscoap != null) {
                 request.OscoapContext = _CurrentOscoap;
@@ -728,6 +954,26 @@ namespace TestClient
 
 
             return request;
+        }
+
+        private static void SetTagOptions(Request request, OptionType optionId, int choice)
+        {
+            switch (choice) {
+                case 0: // nothing
+                    break;
+
+                case 1: // last
+                    if (ETagList.Count > 0) {
+                        request.AddOption(Option.Create(optionId, ETagList.Last()));
+                    }
+                    break;
+
+                case 2: // All
+                    foreach (byte[] tag in ETagList) {
+                        request.AddOption(Option.Create(optionId, tag));
+                    }
+                    break;
+            }
         }
 
 
@@ -935,6 +1181,7 @@ namespace TestClient
                 case "MAX-AGE": return OptionType.MaxAge;
                 case "CONTENT-TYPE": return OptionType.ContentType;
                 case "ACCEPT": return OptionType.Accept;
+                case "IF-NONE": return OptionType.IfNoneMatch;
                 default: return OptionType.Unknown;
             }
         }
@@ -942,6 +1189,51 @@ namespace TestClient
         static void OnTlsEvent(Object o, TlsEvent e)
         {
 
+        }
+
+
+        static readonly KeySet CwtRootKeys = new KeySet();
+
+        static void AddCwtRoot(string[] cmds)
+        {
+            if (cmds.Length != 2) {
+                Console.WriteLine("wrong number of parameters");
+                return;
+            }
+            CBORObject cbor = CBORDiagnostics.Parse(cmds[1]);
+            CwtRootKeys.AddKey(new OneKey(cbor));
+        }
+
+        public class OneTlsKey
+        {
+            public readonly OneKey RawPublicKey;
+            public readonly CWT Cwt;
+            public readonly byte[] ClientCertificate;
+
+            public OneTlsKey(OneKey key)
+            {
+                RawPublicKey = key;
+            }
+
+            public OneTlsKey(CWT cwt, OneKey privKey)
+            {
+                Cwt = cwt;
+                RawPublicKey = privKey;
+            }
+
+            public DTLSClientEndPoint GetClientEndPoint()
+            {               
+                if (Cwt != null) { 
+                    return new DTLSClientEndPoint(Cwt, RawPublicKey, CwtRootKeys); // , CwtRootKeys);
+                }
+
+                if (RawPublicKey != null)
+                {
+                    return new DTLSClientEndPoint(RawPublicKey);
+                }
+
+                throw new Exception("No");
+            }
         }
     }
 }

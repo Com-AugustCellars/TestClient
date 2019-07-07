@@ -1,4 +1,11 @@
 add-oscoap Key1 {1:4,2:'client',3:10,"RecipID":h'636c69656e74',"SenderID":h'736572766572',-1:h'0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223'}
+
+
+add-oscoap KeyA {1:4,2:h'01',3:10,6:h'01',7:h'',-1:'h0102030405060708090a0b0c0d0e0f10',"salt":h'9e7ca92223786340'}
+add-group-oscoap KeyC {1:4,2:h'01',3:10,-1,'h0102030405060708090a0b0c0d0e0f10',"salt":h'9e7ca92223786340',"GroupID":h'37cbf3210017a2d3',"sender":{"ID":h''},"recipients":[{"ID":h'01'}]}
+
+
+
 use-oscoap Key1
 host coap://prometheus.amsuess.com
 oscoap-test 0

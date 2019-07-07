@@ -1,0 +1,38 @@
+* Register Endpoints
+
+1) w/o an EP name
+2) w/ a sector and dup ep name
+3) 2/ short lifetime
+4) Reregister w/ different base
+5) w/ extra attributes
+
+
+* Register groups
+
+1) w/ sector and dup gp name
+2) w/ base URI
+3) w/o base URI
+4) w/ EP that does not exist
+
+* Delete Group
+
+1) Delete extant group
+
+* Lookup Group
+
+1) Get groups w/ endpoints w/ et=X
+2) Get groups w/ resources 2/ if=X
+
+
+* Lookup endpoints
+
+1) get eps w/ gp=X
+2) get eps w/ et=X
+3) get eps w/ if=X
+
+* Lookup resources
+
+1) get res w/ gp=X
+2) get res w/ et=X
+3) get res w/ if=X
+

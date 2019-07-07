@@ -42,7 +42,15 @@ namespace TestClient
             if (EndOfString) return null;
             if (Next == '{') return ParseMap();
             if (Next == '[') return ParseArray();
-            if (char.IsDigit(Next) || Next == '-') return ParseNumber();
+            if (char.IsDigit(Next) || Next == '-') {
+                CBORObject num = ParseNumber();
+
+                if (Next == '(') {
+                    return ParseTag(num);
+                }
+
+                return num;
+            }
             if (Next == 'h') return ParseBinary();
             if (Next == '\'') return ParseBinary();
             if (Next == '"') return ParseString();
@@ -105,6 +113,10 @@ namespace TestClient
             CBORObject key;
 
             if (Next != '{') throw new Exception("ICE " + _offset);
+            if (_input[_offset + 1] == '}') {
+                _offset += 2;
+                return map;
+            }
 
             do {
                 _offset += 1;
@@ -155,8 +167,27 @@ namespace TestClient
                 return CBORObject.FromObject(_input.Substring(start, _offset - 1 - start));
             }
             else {
-                throw new Exception("Invalid input ofset = " + _offset);
+                throw new Exception("Invalid input offset = " + _offset);
             }
+        }
+
+        private CBORObject ParseTag(CBORObject tagNum)
+        {
+            if (Next != '(') {
+                throw new Exception("Invalid tag format");
+            }
+
+            _offset += 1;
+
+            CBORObject content = ParseToCBOR();
+
+            if (Next != ')') {
+                throw new Exception("Invalid tag format");
+            }
+
+            _offset += 1;
+
+            return CBORObject.FromObjectAndTag(content, tagNum.AsInt32());
         }
 
         private void SkipWhiteSpace()
