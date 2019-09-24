@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Net.Configuration;
+//using System.Net.Configuration;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,7 +26,7 @@ namespace TestClient
             public string ClientKey { get; }
             public CoapClient ClientLink { get; set; }
             public bool UseDTLS { get; set; } = false;
-            public OneKey TlsKey { get; set; }
+            public TlsKeyPair TlsKey { get; set; }
             public SecurityContext OscoreKey { get; set; }
             public string Profile { get; }
             public bool UseJSON { get; set; }
@@ -70,15 +70,15 @@ namespace TestClient
 
                 if (UseDTLS) {
                     if (Program._TlsKeys.ContainsKey(KeyName)) {
-                        TlsKey = Program._TlsKeys[KeyName].RawPublicKey;
+                        TlsKey = Program._TlsKeys[KeyName];
                     }
                     else {
                         Console.WriteLine("Can't find TLS key {0}", KeyName);
                     }
                 }
                 else {
-                    if (Program._OscopKeys.ContainsKey(KeyName)) {
-                        OscoreKey = Program._OscopKeys[KeyName];
+                    if (Program._OscoreKeys.ContainsKey(KeyName)) {
+                        OscoreKey = Program._OscoreKeys[KeyName];
                     }
                     else {
                         Console.WriteLine($"Can't find the OSCORE key {KeyName}");
@@ -147,7 +147,7 @@ namespace TestClient
                         if (asi.ClientLink.Uri.Scheme == "coaps") {
                             asi.ClientLink.Uri = new Uri($"coap://{asi.ClientLink.Uri.Authority}/{asi.ClientLink.UriPath}");
                         }
-                        asi.ClientLink.OscoapContext = asi.OscoreKey;
+                        asi.ClientLink.OscoreContext = asi.OscoreKey;
                     }
                 }
 
@@ -166,11 +166,11 @@ namespace TestClient
                     myRequest.Cnf = new Confirmation();
                     switch (ClientKeyType) {
                     case 1: // kid
-                        myRequest.Cnf.Kid = ClientKey[CoseKeyKeys.KeyIdentifier].GetByteString();
+                        myRequest.Cnf.Kid = ClientKey.PrivateKey[CoseKeyKeys.KeyIdentifier].GetByteString();
                         break;
 
                     case 2: // key
-                        myRequest.Cnf.Key = ClientKey;
+                        myRequest.Cnf.Key = ClientKey.PrivateKey;
                         break;
                     }
                 }
@@ -280,7 +280,7 @@ namespace TestClient
                         Console.WriteLine("Returned a token but I don't know what key I should be using");
                         return;
                     }
-                    cnf = new Confirmation(ClientKey);
+                    cnf = new Confirmation(ClientKey.PrivateKey);
                 }
 
                 if (cnf.Kid != null) {
@@ -318,7 +318,7 @@ namespace TestClient
                 case Oauth.ProfileIds.Coap_Oscore: {
                     CBORObject oscoreContext = cnf.AsCBOR[CBORObject.FromObject(Confirmation.ConfirmationIds.COSE_OSCORE)];
 
-                    byte[] salt = null;
+                    byte[] salt = new byte[0];
                     if (oscoreContext.ContainsKey(CBORObject.FromObject(6))) salt = oscoreContext[CBORObject.FromObject(CBORObject.FromObject(6))].GetByteString();
                     CBORObject alg = null;
                     if (oscoreContext.ContainsKey(CBORObject.FromObject(5))) alg = oscoreContext[CBORObject.FromObject(5)];
@@ -333,18 +333,18 @@ namespace TestClient
                         throw new Exception("Internal Error");
                     }
 
-                    keyContext = new byte[OscoreSalts[0].Length + OscoreSalts[1].Length];
-                    Array.Copy(OscoreSalts[0], keyContext, OscoreSalts[0].Length);
-                    Array.Copy(OscoreSalts[1], 0, keyContext, OscoreSalts[0].Length, OscoreSalts[1].Length);
+                    byte[] newSalt =  new byte[salt.Length + OscoreSalts[0].Length + OscoreSalts[1].Length];
+                    Array.Copy(salt, newSalt, salt.Length);
+                    Array.Copy(OscoreSalts[0], 0, newSalt, salt.Length, OscoreSalts[0].Length);
+                    Array.Copy(OscoreSalts[1], 0, newSalt, salt.Length + OscoreSalts[0].Length, OscoreSalts[1].Length);
 
                     SecurityContext oscoapContext = SecurityContext.DeriveContext(
                         oscoreContext[CBORObject.FromObject(1)].GetByteString(), keyContext,
                         oscoreContext[CBORObject.FromObject(2)].GetByteString(), 
                         oscoreContext[CBORObject.FromObject(3)].GetByteString(),
-                        salt, alg, kdf);
-                    oscoapContext.GroupId = null;  // HACK HACK HACK
+                        newSalt, alg, kdf);
 
-                    newRequest.OscoapContext = oscoapContext;
+                    newRequest.OscoreContext = oscoapContext;
 
                     newRequest.URI = new Uri($"coap://{request.URI.Authority}/{request.URI.AbsolutePath}");
 
@@ -520,7 +520,7 @@ namespace TestClient
             }
         }
 
-        private static OneKey ClientKey;
+        private static TlsKeyPair ClientKey;
         private static int ClientKeyType = 2;
 
         private static void SetUserKey(string[] cmds)
@@ -530,7 +530,7 @@ namespace TestClient
             }
             else {
                 if (Program._TlsKeys.ContainsKey(cmds[1])) {
-                    ClientKey = Program._TlsKeys[cmds[1]].RawPublicKey;
+                    ClientKey = Program._TlsKeys[cmds[1]];
                 }
                 else {
                     Console.WriteLine("Can't find TLS key {0}", cmds[1]);
@@ -562,7 +562,7 @@ namespace TestClient
             }
             else {
                 if (LastKeyFound != null) {
-                    Program._TlsKeys[cmds[1]] = new Program.OneTlsKey(LastKeyFound);
+                    Program._TlsKeys[cmds[1]] = new TlsKeyPair(LastKeyFound);
                 }
                 else {
                     Console.WriteLine("No last key found to be saved");

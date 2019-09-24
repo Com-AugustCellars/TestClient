@@ -12,7 +12,7 @@ COMMENT POST /rd?ep=node2&con=http://[2001:db8:1::1] [{"href":"/sensors/temp","c
 GET /rd-lookup/ep
 GET /rd-lookup/res
 
-OPTION accept 999
+OPTION accept 65088
 GET /rd-lookup/ep
 GET /rd-lookup/res
 

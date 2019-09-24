@@ -6,23 +6,26 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>TRACE;DEBUG;DO_TCP</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;DO_ACE; DO_TCP</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="ace\AceAuthz.cs" />
-    <Compile Remove="ace\AceTest.cs" />
-    <Compile Remove="Groups.cs" />
     <Compile Remove="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ace\" />
+    <ProjectReference Include="..\..\..\..\ace\Oauth-Authz\OAuth\oauth.dev.csproj" />
+    <ProjectReference Include="..\..\..\..\COSE\COSE-csharp\COSE\COSE.dev.csproj" />
+    <ProjectReference Include="..\..\CoAP-CSharp\CoAP.NET\coap.dev.csproj" />
+    <ProjectReference Include="..\..\CWT\WebToken\CWT.dev.csproj" />
+    <ProjectReference Include="..\..\TCP\TCP\TCP.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Com.AugustCellars.CoAP.TLS" Version="0.2.0" />
     <PackageReference Include="CommandLineParser" Version="2.5.0" />
   </ItemGroup>
 

@@ -553,6 +553,7 @@ namespace TestClient
 
             if (cmds.Length > 2) {
                 switch (cmds[2].ToLower()) {
+#if false // Dead code?
                     case "cbor":
                         useContentFormat = MediaType.ApplicationLinkFormatCbor;
                         break;
@@ -560,6 +561,7 @@ namespace TestClient
                     case "json":
                         useContentFormat = MediaType.ApplicationLinkFormatJson;
                         break;
+#endif
 
                     default:
                         Console.WriteLine("Unrecognized content type");
@@ -778,11 +780,15 @@ namespace TestClient
                 string x = LinkFormat.Serialize(rr);
                 return Encoding.UTF8.GetBytes(x);
 
-            case MediaType.ApplicationLinkFormatCbor:
+#if false // Dead code?
+                case MediaType.ApplicationLinkFormatCbor:
                 return LinkFormat.SerializeCbor(rr, null);
 
             case MediaType.ApplicationLinkFormatJson:
                 return Encoding.UTF8.GetBytes(LinkFormat.SerializeJson(rr, null));
+#endif
+                case MediaType.ApplicationCoralReef:
+                    return LinkFormat.SerializeCoral(rr, null);
 
             default:
                 return null;

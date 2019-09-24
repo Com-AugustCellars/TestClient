@@ -10,22 +10,22 @@ using Com.AugustCellars.COSE;
 
 namespace TestClient
 {
-    public static class OscoapTests
+    public static class OscoreTests
     {
-        private static SecurityContext _oscoap_context = null;
-        private static SecurityContext _oscoap_group_context = null;
+        private static SecurityContext _oscoreContext = null;
+        private static SecurityContext _oscoreGroupContext = null;
         
         public static void RunTest(int test)
         {
-            if (_oscoap_context == null) {
-                _oscoap_context = SecurityContext.DeriveContext(
+            if (_oscoreContext == null) {
+                _oscoreContext = SecurityContext.DeriveContext(
                     new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}, null,
                     new byte[0], new byte[] {1},
                     new byte[] { 0x9e, 0x7c, 0xa9, 0x22, 0x23, 0x78, 0x63, 0x40 });
             }
 
-            if (_oscoap_group_context == null) {
-                _oscoap_group_context = SecurityContext.DeriveGroupContext(
+            if (_oscoreGroupContext == null) {
+                _oscoreGroupContext = SecurityContext.DeriveGroupContext(
                     new byte[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
                     new byte[] {0x37, 0xcb, 0xf3, 0x21, 0x00, 0x17, 0xa2, 0xd3}, new byte[0], null, null,
                     new byte[][] {new byte[] {0x1}}, null,
@@ -143,7 +143,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.Get();
@@ -179,7 +179,7 @@ namespace TestClient
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_group_context
+                OscoreContext = _oscoreGroupContext
             };
 
             Response response = request.Get();
@@ -216,7 +216,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/2?first=1")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.Get();
@@ -260,7 +260,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/3")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.Get(MediaType.TextPlain);
@@ -303,7 +303,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
                
             };
 
@@ -346,7 +346,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/observe1")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             int count = 0;
@@ -380,7 +380,7 @@ namespace TestClient
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/observe2") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             int count = 0;
@@ -415,7 +415,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/6")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.Post(new byte[]{0x4a}, MediaType.TextPlain);
@@ -442,7 +442,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/7")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.PutIfMatch(new byte[] { 0x7a }, MediaType.TextPlain, new byte[][]{new byte[]{0x7b}});
@@ -466,7 +466,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/7")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.PutIfNoneMatch(new byte[] { 0x8a }, MediaType.TextPlain);
@@ -490,7 +490,7 @@ namespace TestClient
             CoapClient request = new CoapClient(Program.Host + "/oscore/test")
             {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             Response response = request.Delete();
@@ -513,11 +513,11 @@ namespace TestClient
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
-            byte[] saveId = _oscoap_context.Sender.Id;
-            _oscoap_context.Sender.Id = new byte[]{25};
+            byte[] saveId = _oscoreContext.Sender.Id;
+            _oscoreContext.Sender.Id = new byte[]{25};
 
             Response response = request.Post(new byte[] { 0x4a }, MediaType.TextPlain);
 
@@ -537,19 +537,19 @@ namespace TestClient
 
             Console.WriteLine($"Response Message:\n{Utils.ToString(response)}");
 
-            _oscoap_context.Sender.Id = saveId;
+            _oscoreContext.Sender.Id = saveId;
         }
 
         static void RunTest52()
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
-            byte[] saveKey = _oscoap_context.Sender.Key;
+            byte[] saveKey = _oscoreContext.Sender.Key;
             byte[] newKey = (byte[])saveKey.Clone();
-            _oscoap_context.Sender.Key = newKey;
+            _oscoreContext.Sender.Key = newKey;
             newKey[0] += 1;
 
             Response response = request.Post(new byte[] { 0x4a }, MediaType.TextPlain);
@@ -570,17 +570,17 @@ namespace TestClient
 
             Console.WriteLine($"Response Message:\n{Utils.ToString(response)}");
 
-            _oscoap_context.Sender.Key = saveKey;
+            _oscoreContext.Sender.Key = saveKey;
         }
 
         static void RunTest5_2_2()
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
-            _oscoap_context.Sender.BaseIV[_oscoap_context.Sender.BaseIV.Length-1] -= 1;
+            _oscoreContext.Sender.BaseIV[_oscoreContext.Sender.BaseIV.Length-1] -= 1;
 
             Response response = request.Get();
 
@@ -602,7 +602,7 @@ namespace TestClient
 
             request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
             response = request.Get();
@@ -612,12 +612,12 @@ namespace TestClient
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/1") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
-            byte[] saveKey = _oscoap_context.Recipient.Key;
+            byte[] saveKey = _oscoreContext.Recipient.Key;
             byte[] newKey = (byte[])saveKey.Clone();
-            _oscoap_context.Sender.Key = newKey;
+            _oscoreContext.Sender.Key = newKey;
             newKey[0] += 1;
 
             Response response = request.Post(new byte[] { 0x4a }, MediaType.TextPlain);
@@ -638,14 +638,14 @@ namespace TestClient
 
             Console.WriteLine($"Response Message:\n{Utils.ToString(response)}");
 
-            _oscoap_context.Recipient.Key = saveKey;
+            _oscoreContext.Recipient.Key = saveKey;
         }
 
         static void RunTest5_3_1()
         {
             CoapClient request = new CoapClient(Program.Host + "/oscore/hello/coap") {
                 Timeout = 2000,
-                OscoapContext = _oscoap_context
+                OscoreContext = _oscoreContext
             };
 
 

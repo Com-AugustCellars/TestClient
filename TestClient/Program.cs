@@ -1,44 +1,53 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
-using System.Configuration;
+using System.ComponentModel.DataAnnotations;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using Com.AugustCellars.CoAP;
 using Com.AugustCellars.CoAP.DTLS;
+#if DO_TCP
+using Com.AugustCellars.CoAP.TLS;
+#endif
 using Com.AugustCellars.CoAP.Log;
 using Com.AugustCellars.CoAP.OSCOAP;
 using Com.AugustCellars.CoAP.Util;
 using Com.AugustCellars.COSE;
 using PeterO.Cbor;
 using Com.AugustCellars.CoAP.Net;
+#if SUPPORT_TLS_CWT
 using Com.AugustCellars.WebToken;
-using Org.BouncyCastle.Crypto.Paddings;
-#if DEV_VERSION
-#if false
-using Com.AugustCellars.CoAP.EDHOC;
 #endif
-using Com.AugustCellars.CoAP.TLS;
-#endif
+using CommandLine;
+using CommandLine.Text;
+using Org.BouncyCastle.Crypto.Tls;
+using Org.BouncyCastle.Utilities.Encoders;
+using Org.BouncyCastle.X509;
 
 namespace TestClient
 {
+    public class Options
+    {
+        [Option("script", Required = false, HelpText = "Provide a string to start running")]
+        public string Script { get; set; }
+        [Option("title", Required = false, Default = "CoAP Test Client", HelpText = "Set the title of the command window")]
+        public string Title { get; set; }
+        [Option('v', "verbose", Required = false, HelpText = "Set output to verbose messages.")]
+        public bool Verbose { get; set; }
+    }
+
     class Program
     {
-        public static readonly Dictionary<string, OneTlsKey> _TlsKeys = new Dictionary<string, OneTlsKey>();
+        public static readonly Dictionary<string, TlsKeyPair> _TlsKeys = new Dictionary<string, TlsKeyPair>();
         // private static CoAPEndPoint _EndPoint = null;
         // private static CoAPEndPoint _DtlsEndpoint = null;
-        private static OneKey _TlsKey = null;
-        public static readonly Dictionary<string, SecurityContext> _OscopKeys = new Dictionary<string, SecurityContext>();
-        private static SecurityContext _CurrentOscoap = null;
-        private static readonly Dictionary<string, OneKey> _EdhocValidateKeys = new Dictionary<string, OneKey>();
-        private static readonly KeySet _EdhocServerKeys = new KeySet();
-        private static readonly List<Option> _Options = new List<Option>();
+        public static readonly Dictionary<string, SecurityContext> _OscoreKeys = new Dictionary<string, SecurityContext>();
+        public static SecurityContext _CurrentOscore = null;
+        public static readonly List<Option> _Options = new List<Option>();
 
-        private static DispatchTable _dispatchTable = new DispatchTable();
+        private static readonly DispatchTable dispatchTable = new DispatchTable();
         private static MessageType Con { get; set; } = MessageType.CON;
 
         private static byte[] Body = null;
@@ -49,11 +58,23 @@ namespace TestClient
 
         public static Uri Host { get; set; }
         public static System.Net.IPEndPoint LocalIp { get; set; }
-        public static string Transport { get; set; } = "UDP"; 
+        public static string Transport { get; set; } = "UDP";
+
+
 
         static void Main(string[] args)
         {
-            string script = null;
+            Options options = null;
+            ParserResult<Options> optionResult = CommandLine.Parser.Default.ParseArguments<Options>(args)
+                .WithParsed(o => { options = o; })
+                .WithNotParsed(o => {
+                    Console.WriteLine("Invalid command line");
+                    Console.WriteLine(o.ToString());
+                    Environment.Exit(1);
+                });
+
+
+            Console.Title = options.Title;
 
 #if false
             {
@@ -85,35 +106,29 @@ namespace TestClient
 
             LogManager.Instance = new FileLogManager(Console.Out);
 
-            foreach (string arg in args) {
-                if (arg[0] == '-') {
-                    if (arg.StartsWith("--script=")) {
-                        script = arg.Substring(9);
-                    }
 
-                }
-                else {
-                    
-                }
-            }
+            FillDispatchTable(dispatchTable);
+            Oscore.Register(dispatchTable);
+#if DEV_VERSION
+            Groups.FillDispatchTable(dispatchTable);
+#endif
 
-            FillDispatchTable(_dispatchTable);
 #if DO_ACE
-            AceAuthz.AddCommands(_dispatchTable);
+            AceAuthz.AddCommands(dispatchTable);
 
             //  Setup plain OAuth
             AceAuthzHandler = new AceAuthz();
 
 #endif
 #if DO_RD
-            ResourceDirectory.AddCommands(_dispatchTable);
+            ResourceDirectory.AddCommands(dispatchTable);
 #endif
 
 
 
 
-            if (script != null) {
-                TextReader x = new StreamReader(script);
+            if (options.Script != null) {
+                TextReader x = new StreamReader(options.Script);
                 RunScript(x);
                 x.Dispose();
             }
@@ -161,23 +176,15 @@ namespace TestClient
             table.Add("local", new Dispatch("Set the local address to send from", "local [<uri>]", SetLocal));
 
             table.Add("add-tlskey", new Dispatch("Add a named TLS key to the dictionary", "add-tlskey ????", AddTlsKey));
+#if SUPPORT_TLS_CWT
             table.Add("add-tlscwt", new Dispatch("Add a named CWT for TLS to the dictionary", "add-tlscwt name CWT PrivateKey", AddTlsCwt));
+#endif
+            table.Add("add-tlscert", new Dispatch("Add a key plus certificate for TLS", "set-tslcert name X509Cert PrivateKey", AddTlsCert));
             table.Add("set-tlskey", new Dispatch("Set the default TLS key to use", "set-tlskey [key-name]", SetTlsKey));
             table.Add("add-cwtroot", new Dispatch("Add a key to the CWT trust store", "add-cwtroot key", AddCwtRoot));
 
             table.Add("etag", new Dispatch("Manipulate ETag behavior", "etag [None|clear|last|add|all]", ETagCommands));
             table.Add("if-match", new Dispatch("Set If-Match message options", "if-match [all|none|last]", IfMatchCommands));
-
-#region OSCORE
-            //  OSCORE Functions
-            table.Add("add-oscore", new Dispatch("Add a OSCORE key to the key set", "add-oscore key-name key-value", AddOscoreKey));
-            table.Add("add-group-oscore", new Dispatch("Add a Group OSCORE key to the key set", "add-oscore key-name key-value", AddGroupOscoreKey));
-            table.Add("set-oscore", new Dispatch("Select an score key to use", "set-oscore [key-name]", UseOscoreKey));
-            table.Add("use-oscore", new Dispatch("Select an score key to use", "use-oscore [key-name]", UseOscoreKey));
-            table.Add("run-oscore-test", new Dispatch("Run a specific oscore text", "run-score-test testNumber", RunOscoreText));
-            table.Add("set-oscore-piv", new Dispatch("Set the PIV value for the current oscore key", "set-oscore-piv pivNumber", SetOscorePiv));
-#endregion
-
         }
 
         static void RunSetPayload(string[] cmds)
@@ -325,7 +332,7 @@ namespace TestClient
 
                 switch (commands[0].ToUpper()) {
                 default:
-                    _dispatchTable.Execute(commands);
+                    dispatchTable.Execute(commands);
                     break;
 
 
@@ -450,31 +457,6 @@ namespace TestClient
                     RunEdhoc(commands);
                     break;
 #endif
-
-
-#if DEV_VERSION
-#endif
-
-
-                case "EDHOC-ADD-SERVER-KEY":
-                    if (commands.Length != 2) {
-                        Console.WriteLine("Incorrect number of arguments: " + commands.Length);
-                        return;
-                    }
-
-                    CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
-                    _EdhocServerKeys.AddKey(new OneKey(cbor));
-                    break;
-
-                case "EDHOC-ADD-USER-KEY":
-                    if (commands.Length != 3) {
-                        Console.WriteLine("Incorrect number of arguments: " + commands.Length);
-                        return;
-                    }
-
-                    cbor = CBORDiagnostics.Parse(commands[2]);
-                    _EdhocValidateKeys.Add(commands[1], new OneKey(cbor));
-                    break;
                 }
             }
             catch (Exception e) {
@@ -533,6 +515,7 @@ namespace TestClient
             }
         }
 
+#if SUPPORT_TLS_CWT
         private static void AddTlsCwt(string[] commands)
         {
             if (commands.Length != 4) {
@@ -544,7 +527,21 @@ namespace TestClient
             CWT cwt = CWT.Decode(cbor.EncodeToBytes(), CwtRootKeys, CwtRootKeys);
 
             cbor = CBORDiagnostics.Parse(commands[3]);
-            _TlsKeys.Add(commands[1], new OneTlsKey(cwt, new OneKey(cbor)));
+            _TlsKeys.Add(commands[1], new TlsKeyPair(cwt, new OneKey(cbor)));
+        }
+#endif
+
+        private static void AddTlsCert(string[] commands)
+        {
+            if (commands.Length != 4) {
+                Console.WriteLine($"Incorrect number of arguments: {commands.Length}");
+                return;
+            }
+
+            byte[] bytes = Hex.Decode(commands[2]);
+            X509Certificate cert = new X509CertificateParser().ReadCertificate(bytes);
+            CBORObject cbor = CBORDiagnostics.Parse(commands[3]);
+            _TlsKeys.Add(commands[1], new TlsKeyPair(bytes, new OneKey(cbor)));
         }
 
         private static void AddTlsKey(string[] commands)
@@ -556,7 +553,7 @@ namespace TestClient
 
             CBORObject cbor = CBORDiagnostics.Parse(commands[2]);
             OneKey key = new OneKey(cbor);
-            _TlsKeys.Add(commands[1], new OneTlsKey(key));
+            _TlsKeys.Add(commands[1], new TlsKeyPair(key));
         }
 
         private static void SetTlsKey(string[] commands)
@@ -574,104 +571,6 @@ namespace TestClient
             currentTlsKey = commands[1];
         }
 
-        #region OSCORE functions
-
-        private static void AddOscoreKey(string[] cmds)
-        {
-            if (cmds.Length != 3) {
-                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
-                return;
-            }
-
-            CBORObject cbor = CBORDiagnostics.Parse(cmds[2]);
-            byte[] salt = null;
-            if (cbor.ContainsKey(CBORObject.FromObject(6))) {
-                salt = cbor[CBORObject.FromObject(6)].GetByteString();
-            }
-
-            byte[] contextId = null;
-            if (cbor.ContainsKey(CBORObject.FromObject(7))) {
-                contextId = cbor[CBORObject.FromObject(7)].GetByteString();
-            }
-
-            SecurityContext ctx = SecurityContext.DeriveContext(
-                cbor[CBORObject.FromObject(1)].GetByteString(),
-                contextId,
-                cbor[CBORObject.FromObject(2)].GetByteString(),
-                cbor[CBORObject.FromObject(3)].GetByteString(), salt,
-                null /*cbor[CoseKeyKeys.Algorithm]*/);
-
-            _OscopKeys.Add(cmds[1], ctx);
-        }
-
-        /// <summary>
-        /// What the CBOR structure needs to look like:
-        /// 
-        /// </summary>
-        /// <param name="cmds"></param>
-        private static void AddGroupOscoreKey(string[] cmds)
-        {
-            if (cmds.Length != 3) {
-                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
-                return;
-            }
-
-            CBORObject cbor = CBORDiagnostics.Parse(cmds[2]);
-            byte[] salt = null;
-            if (cbor.ContainsKey(CoseKeyKeys.slt)) {
-                salt = cbor[CoseKeyKeys.slt].GetByteString();
-            }
-
-            SecurityContext ctx = SecurityContext.DeriveGroupContext(cbor[CoseKeyParameterKeys.Octet_k].GetByteString(),
-                                                                     cbor[CBORObject.FromObject("GroupID")].GetByteString(),
-                                                                     cbor[CBORObject.FromObject("sender")][
-                                                                         CBORObject.FromObject("ID")].GetByteString(),
-                                                                     cbor["sender"]["sign"][CoseKeyKeys.Algorithm],
-                                                                     new OneKey(cbor["sender"]["sign"]),
-                                                                     null, null, salt, cbor[CoseKeyKeys.Algorithm]);
-            foreach (CBORObject recipient in cbor[CBORObject.FromObject("recipients")].Values) {
-                OneKey signKey = null;
-                if (recipient.ContainsKey("sign")) {
-                    signKey = new OneKey(recipient["sign"]);
-                }
-                ctx.AddRecipient(recipient[CBORObject.FromObject("ID")].GetByteString(), signKey);
-            }
-
-            _OscopKeys.Add(cmds[1], ctx);
-        }
-
-        private static void UseOscoreKey(string[] cmds)
-        {
-            if (cmds.Length != 2) {
-                Console.WriteLine("Incorrect number of arguments: " + cmds.Length);
-                return;
-            }
-
-            if (cmds[1] == "NONE") {
-                _CurrentOscoap = null;
-                return;
-            }
-
-            if (!_OscopKeys.ContainsKey(cmds[1])) {
-                Console.WriteLine($"OSCOAP Key {cmds[1]} is not defined");
-                return;
-            }
-
-            _CurrentOscoap = _OscopKeys[cmds[1]];
-        }
-
-        private static void RunOscoreText(string[] cmds)
-        {
-
-            OscoapTests.RunTest(Int32.Parse(cmds[1]));
-        }
-
-        private static void SetOscorePiv(string[] cmds)
-        {
-            _CurrentOscoap.Sender.SequenceNumber = Int32.Parse(cmds[1]);
-        }
-
-        #endregion
 
         public static void RunCoapCommand(string[] args)
         {
@@ -819,7 +718,8 @@ namespace TestClient
                             return false;
                         }
                         TLSClientEndPoint tep = new TLSClientEndPoint(_TlsKeys[currentTlsKey]);
-                        // tep.TlsEventHandler += OnTlsEvent;
+
+                        tep.TlsEventHandler += OnTlsEvent;
                         ep = tep;
                         break;
 #endif
@@ -841,10 +741,10 @@ namespace TestClient
 
                         DTLSClientEndPoint dep;
                         if (LocalIp != null) {
-                            dep = new DTLSClientEndPoint(_TlsKeys[currentTlsKey].RawPublicKey, LocalIp);
+                            dep = new DTLSClientEndPoint(_TlsKeys[currentTlsKey], LocalIp);
                         }
                         else {
-                            dep = _TlsKeys[currentTlsKey].GetClientEndPoint();
+                            dep =  new DTLSClientEndPoint(_TlsKeys[currentTlsKey]);
                         }
 
                         dep.TlsEventHandler += OnTlsEvent;
@@ -948,8 +848,8 @@ namespace TestClient
             SetTagOptions(request, OptionType.IfMatch, IfMatchOption);
 
             request.AddOptions(_Options);
-            if (_CurrentOscoap != null) {
-                request.OscoapContext = _CurrentOscoap;
+            if (_CurrentOscore != null) {
+                request.OscoreContext = _CurrentOscore;
             }
 
 
@@ -1171,7 +1071,7 @@ namespace TestClient
             req.Send();
             response = req.WaitForResponse();
 
-            _OscopKeys[cmds[1]] = send.CreateSecurityContext();
+            _OscoreKeys[cmds[1]] = send.CreateSecurityContext();
         }
 #endif // DEV_VERSION
 
@@ -1188,7 +1088,46 @@ namespace TestClient
 
         static void OnTlsEvent(Object o, TlsEvent e)
         {
+            switch (e.Code) {
+                case TlsEvent.EventCode.ClientCertificate:
+                    // X509Certificate x509 = new X509CertificateParser().ReadCertificate(e.Certificate);
+                    break;
 
+                case TlsEvent.EventCode.GetCipherSuites:
+                    Console.WriteLine($"TLS Event => Get other cipher suites");
+                    break;
+
+                case TlsEvent.EventCode.GetExtensions:
+                    Console.WriteLine($"TLS Event => Get additional client extensions");
+                    break;
+
+                case TlsEvent.EventCode.ServerCertificate:
+                    switch (e.CertificateType) {
+                        case CertificateType.X509:
+                            Certificate x509 = (Certificate) e.Certificate;
+                            Console.WriteLine($"TLS Event => Server certificate {x509.GetCertificateAt(0).Subject.ToString()}");
+                            e.Processed = true;
+                            break;
+
+                        default:
+                            Console.WriteLine($"TLS Event => Server certificate Type is {e.CertificateType}");
+                            break;
+                    }
+                    break;
+
+                case TlsEvent.EventCode.SignCredentials:
+                    Console.WriteLine($"TLS Event => Missing authentication credentials");
+                    break;
+
+                case TlsEvent.EventCode.UnknownPskName:
+                    Console.WriteLine($"TLS Event => Unknown PSK found {Encoding.UTF8.GetString(e.PskName)}");
+                    Console.WriteLine("==> That was really unexpected");
+                    break;
+
+                default:
+                    Console.WriteLine($"TLS Event => Unexpected event code = {e.Code}");
+                    break;
+            }
         }
 
 
@@ -1202,38 +1141,6 @@ namespace TestClient
             }
             CBORObject cbor = CBORDiagnostics.Parse(cmds[1]);
             CwtRootKeys.AddKey(new OneKey(cbor));
-        }
-
-        public class OneTlsKey
-        {
-            public readonly OneKey RawPublicKey;
-            public readonly CWT Cwt;
-            public readonly byte[] ClientCertificate;
-
-            public OneTlsKey(OneKey key)
-            {
-                RawPublicKey = key;
-            }
-
-            public OneTlsKey(CWT cwt, OneKey privKey)
-            {
-                Cwt = cwt;
-                RawPublicKey = privKey;
-            }
-
-            public DTLSClientEndPoint GetClientEndPoint()
-            {               
-                if (Cwt != null) { 
-                    return new DTLSClientEndPoint(Cwt, RawPublicKey, CwtRootKeys); // , CwtRootKeys);
-                }
-
-                if (RawPublicKey != null)
-                {
-                    return new DTLSClientEndPoint(RawPublicKey);
-                }
-
-                throw new Exception("No");
-            }
         }
     }
 }
