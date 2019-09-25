@@ -1,0 +1,7 @@
+HOST coap://85.23.50.176
+set-endpoint TCP
+SLEEP 1
+comment get /ExtraLargeResource
+add-tlskey Key2 {1:4,2:'CoAP',-1:'secretPSK'}
+use-tlskey Key2
+get coap:/.well-known/core

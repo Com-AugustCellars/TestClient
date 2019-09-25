@@ -1,0 +1,6 @@
+HOST coap://localhost
+
+get /.well-known/core
+
+rd_clean
+rd_test 2

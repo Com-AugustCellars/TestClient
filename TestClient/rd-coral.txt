@@ -1,0 +1,20 @@
+HOST coap://localhost
+
+GET /.well-known/core?rt=core.*
+
+OPTION content-type 40
+POST /rd?ep=node1 </sensors/temp>;ct=41;rt="temperature-c";if="sensor";anchor="coap://spurious.example.com:5683",</sensors/light>;ct=41;rt="light-lux";if="sensor"
+
+
+COMMENT OPTION content-type application/link-format+json
+COMMENT POST /rd?ep=node2&con=http://[2001:db8:1::1] [{"href":"/sensors/temp","ct":"41","rt":"temperature-c","if":"sensor","anchor":"coap://spurious.example.com:5683"},{"href":"/sensors/light","ct":"41","rt":"light-lux","if":"sensor"}]
+
+GET /rd-lookup/ep
+GET /rd-lookup/res
+
+OPTION accept 65088
+GET /rd-lookup/ep
+GET /rd-lookup/res
+
+
+

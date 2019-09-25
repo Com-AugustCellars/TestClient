@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;DEBUG;DO_ACE; DO_TCP</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\ace\Oauth-Authz\OAuth\oauth.dev.csproj" />
+    <ProjectReference Include="..\..\..\..\COSE\COSE-csharp\COSE\COSE.dev.csproj" />
+    <ProjectReference Include="..\..\CoAP-CSharp\CoAP.NET\coap.dev.csproj" />
+    <ProjectReference Include="..\..\CWT\WebToken\CWT.dev.csproj" />
+    <ProjectReference Include="..\..\TCP\TCP\TCP.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommandLineParser" Version="2.5.0" />
+  </ItemGroup>
+
+</Project>

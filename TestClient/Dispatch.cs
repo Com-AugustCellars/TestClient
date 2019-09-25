@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace TestClient
 {
-    class Dispatch
+    public class Dispatch
     {
         public Action<string[]>  Action { get; }
         public string HelpLine { get; }
@@ -20,7 +20,7 @@ namespace TestClient
 
     }
 
-    class DispatchTable
+    public class DispatchTable
     {
         readonly Dictionary<string, Dispatch> _table = new Dictionary<string, Dispatch>();
 

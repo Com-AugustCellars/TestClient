@@ -1,0 +1,3 @@
+host coap://224.0.1.187
+con no
+get /hello

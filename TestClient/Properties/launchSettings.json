@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "TestClient": {
+      "commandName": "Project",
+      "commandLineArgs": "--script=tls-x509.txt",
+      "workingDirectory": "D:\\Projects\\coap\\CoAP\\TestClient\\TestClient"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+add-tlskey Key1 {1:4,2:'password',-1:'sesame'}
+host coaps://localhost
+set-tlskey Key1
+
+get /secure
+

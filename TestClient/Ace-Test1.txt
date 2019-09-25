@@ -1,0 +1,111 @@
+add-tlskey Key2 {1:2,3:-7,-1:1,-2:h'73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5',-3:h'1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A',-4:h'00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507'}
+add-tlskey AS_Key "{1: 2, 3: -7, -1: 1,-2: h'058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781',-3: h'364269649744067D4600A529AE12076750D90C5EFCD9835137DB1AE2B4BACCB8',-4: h'0089A92D07B34F1D806FABFF444AF6507C5F18F47BB2CCFAA7FBEC447303790D53'}"
+add-tlskey Client1 {1:4,-1:h'6162630405060708090a0b0c0d0e0f10',2:'client1'}
+add-tlskey Client2 {1:4,2:'client2',-1:h'0102030405060708090a0b0c0d0e0f10'}
+add-tlskey Client3 {1:2,3:-7,-1:1,-2:h'12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110',-3:h'283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8',-4:h'00A43BAA7ED22FF2699BA62CA4999359B146F065A95C4E46017CD25EB89A94AD29'}
+add-tlskey Client4 {1:4,2:'client4',-1:h'5152530405060708090a0b0c0d0e0f10'}
+
+comment host coaps://localhost:5689
+comment host coaps://85.235.12.155
+host coaps://jimsch.hopto.org
+
+
+comment Test 1.1
+comment Should reject
+
+set-tlskey AS_Key
+
+POST /token HiMom
+
+pause
+
+comment Test 1.2
+comment should reject this
+
+set-tlskey Client1
+POST /token HiMom
+
+pause
+
+comment Test 1.3
+
+set-tlskey Client2
+payload {18:2,12:"HelloWorld"}
+option content-type 10
+POST /token
+pause
+
+
+comment Test 1.4
+
+set-tlskey Client2
+payload {18:0,12:"HelloWorld",3:"RS1"}
+option content-type 10
+POST /token
+pause
+
+comment Test 1.5
+
+set-tlskey Client2
+payload {18:2,12:"test",3:"RS1"}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.6
+
+set-tlskey Client2
+payload {18:2,12:"HelloWorld",3:"RS1"}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.7
+
+set-tlskey Client2
+payload {18:2,12:"HelloWorld",3:"RS1",25:{1:{2:h'91ECB5CD5DBC',1:4,-1:h'6162630405060708090a0b0c0d0e0f10'}}}
+option content-type 60
+POST /token
+pause
+
+
+comment Test 1.8
+
+set-tlskey Client3
+payload {18:2,3:"RS1"}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.9
+
+set-tlskey Client3
+payload {18:2,12:"HelloWorld",3:"RS1",25:{1:{1:2,3:-7,-1:1,-2:h'12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110',-3:h'283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8'}}}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.10
+
+set-tlskey Client3
+payload {18:2,12:"HelloWorld",3:"RS2",25:{1:{1:2,3:-7,-1:1,-2:h'12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110',-3:h'283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8'}}}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.11
+
+set-tlskey Client4
+payload {18:2,12:"rw_Lock",3:"RS1"}
+option content-type 60
+POST /token
+pause
+
+comment Test 1.12
+
+set-tlskey Client4
+payload {18:2,12:"r_Lock rw_Lock",3:"RS1"}
+option content-type 60
+POST /token
+pause
+

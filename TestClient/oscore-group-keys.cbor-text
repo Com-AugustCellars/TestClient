@@ -1,0 +1,62 @@
+{
+    "GroupID":h'37cbf3210017a2d3', / Group ID /
+    "sign-alg": -7, / Signature Algorithm for Everybody /
+    
+    3:10, / AEAD Algorithm : 10 /
+    1:4, / Key Type Symmetric /
+    -1:'h0102030405060708090a0b0c0d0e0f10', / Octet Key - Master Secret /
+    8:h'9e7ca92223786340', / Salt - Master Salt /
+    
+    "sender":{
+        "ID":h'', / Sender's ID /
+        "seq": 0, / Sender Sequence Number /
+        "sign":{  / Senders Signing Key /
+            1: 2,
+            3: -7,
+            -1: 1,
+            -2: h'7067ACDEB2790DA87AC66E5F666DEA75532077789E73279FD9932DFCEEED9A96',
+            -3: h'8FA6990D0EE67850AFDD974D2A451A811E6B9CA834E895ACC818D27FF31140E4',
+            -4: h'D4D9AFD692B5F95865390845641CEAAA9E767E2878D208C516FF7717013BB042'
+        }
+    },
+    "recipients":[
+        {
+            "ID":h'01', / Recipient ID /
+            "replay-base": 0, / Reply base # /
+            "sign": {
+                1: 2,
+                3: -7,
+                -1: 1,
+                -2: h'2A6D567BCC61FC04E29230981F04825B4B856C7BFEA77A8FDE380A159EE73926',
+                -3: h'19CEBDDB6D62A238DB4120EC323E28BF6AC2F039080581E0EFAB3F86052BF621',
+                -4: h'DEBE946063EE5EA7F66ED7AA3769C1803F039F161D3723F22838E4F7E75FAEA4'
+            } / Reipient signing key /
+        },
+        {
+            "ID":h'999', / Recipient ID /
+            "replay-base": 0, / Reply base # /
+            "sign": {
+                1: 2,
+                3: -7,
+                -1: 1,
+                -2: h'D86044496516724C760C030C5506694E554B3F96D8BC283ABC1F467197E0B50F',
+                -3: h'E1942FBE9C10FEE8ED3DE93BCE05A534E96D0282E81D700AA836C2EB95654C1B',
+                -4: h'FD74E1FBA317BBE7874A891267C5C2514679563791597FE09EE9264649604215'
+            } / Reipient signing key /
+        },
+        {
+            "ID":h'333', / Recipient ID /
+            "replay-base": 0, / Reply base # /
+            "sign": {
+                1: 2,
+                3: -7,
+                -1: 1,
+                -2: h'8C5E2681C5B4A9C9E4FA35ED2A25E285142FF66C07065C5EC3D62F453D493F8C',
+                 -3: h'D1CFECE37613108827BA78665B3C126C47A6B0077FC9EA4AD375A62282761A79',
+                 -4: h'73906751BB39D074E32E92B1F269A99759A2E5752D1B8C81177F96920BAE2EE4'
+            } / Reipient signing key /
+        }
+    ]
+}
+
+

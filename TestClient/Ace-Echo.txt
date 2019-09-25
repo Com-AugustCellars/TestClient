@@ -1,0 +1,16 @@
+add-tlskey Key1 {1:4,2:'ACE_KID1',-1:h'02030405060708090a0b'}
+add-tlskey Key2 {1:4,2:'ACE_KID2',-1:h'0c02030405060708090a0b'}
+add-tlskey KeyL {1:4,2:'clientA',-1:h'6162630405060708090a0b0c0d0e0f10'}
+host coap://localhost
+as_add coaps://localhost:5689/token coap_dtls Key1
+as_add coaps://31.133.142.90/token coap_dtls KeyL
+as_add coaps://31.133.134.176/token coap_dtls Key1
+
+Get /ace-echo
+
+comment Ludwig address //31.133.142.90
+comment Olaf address //31.133.134.176
+
+
+comment set-tlskey Key1
+comment post coaps://31.133.142.90/token body

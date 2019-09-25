@@ -1,0 +1,11 @@
+add-oscore io_client2 {1:h'100F0E0D0C0B0A090A07060504636261',2:h'636C4964',3:h'617353724964'}
+
+
+kdcToken coap://localhost:5688/token KDC Group1 io_client2 coap://localhost:5690/AuthZ group1
+
+host coap://localhost:5690
+
+GET /.well-known/core
+
+use-oscore group1
+kdc-join coap://localhost:5690/kdc/Group1 group2
