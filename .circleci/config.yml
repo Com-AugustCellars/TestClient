@@ -12,5 +12,5 @@ jobs:
        - run:
            name: Build
            command: |
-              dotnet build --framework=netcoreapp2.0 server.sln
+              dotnet build --framework=netcoreapp2.0 TestClient.sln
            
